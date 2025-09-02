@@ -1,23 +1,32 @@
 #!/bin/bash
 
 # ===========================
-# desktime - auto-updating version
+# desktime - user-friendly auto-updating version
 # ===========================
+
+# Set install path in user-owned folder
+INSTALL_DIR="$HOME/bin"
+INSTALL_PATH="$INSTALL_DIR/desktime"
+mkdir -p "$INSTALL_DIR"
+
+# Ensure ~/bin is in PATH
+case ":$PATH:" in
+    *":$INSTALL_DIR:"*) ;;
+    *) export PATH="$INSTALL_DIR:$PATH" ;;
+esac
 
 # GitHub raw URL of this script
 REPO_RAW="https://raw.githubusercontent.com/jigarkkarangiya/desktime/main/desktime.sh"
-INSTALL_PATH="/usr/local/bin/desktime"
 
 # ---------------------------
-# Auto-update
+# Auto-update (no sudo required)
 # ---------------------------
-# Download latest version to temp file
-sudo curl -fsSL "$REPO_RAW" -o "$INSTALL_PATH.tmp" 2>/dev/null
-sudo chmod +x "$INSTALL_PATH.tmp"
+curl -fsSL "$REPO_RAW" -o "$INSTALL_PATH.tmp"
+chmod +x "$INSTALL_PATH.tmp"
 
 # Replace only if different
-if ! cmp -s "$INSTALL_PATH.tmp" "$INSTALL_PATH" 2>/dev/null; then
-    sudo mv "$INSTALL_PATH.tmp" "$INSTALL_PATH"
+if [ ! -f "$INSTALL_PATH" ] || ! cmp -s "$INSTALL_PATH.tmp" "$INSTALL_PATH"; then
+    mv "$INSTALL_PATH.tmp" "$INSTALL_PATH"
     echo "desktime has been updated to the latest version!"
 else
     rm -f "$INSTALL_PATH.tmp"
@@ -28,7 +37,7 @@ fi
 # ---------------------------
 
 # Get first timestamp from today's auth.log
-first_time=$(sudo grep "$(date '+%b %e')" /var/log/auth.log | head -n 1 | awk '{print $3}')
+first_time=$(grep "$(date '+%b %e')" /var/log/auth.log | head -n 1 | awk '{print $3}')
 current_time=$(date +"%H:%M:%S")
 
 # Convert to seconds since epoch
