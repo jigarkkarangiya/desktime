@@ -47,6 +47,29 @@ if command -v curl >/dev/null 2>&1; then
 fi
 
 # ---------------------------
+# Color definitions
+# ---------------------------
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[0;37m'
+BOLD='\033[1m'
+DIM='\033[2m'
+RESET='\033[0m'
+
+# Background colors
+BG_RED='\033[41m'
+BG_GREEN='\033[42m'
+BG_YELLOW='\033[43m'
+BG_BLUE='\033[44m'
+BG_PURPLE='\033[45m'
+BG_CYAN='\033[46m'
+BG_WHITE='\033[47m'
+
+# ---------------------------
 # Main functionality
 # ---------------------------
 
@@ -109,6 +132,41 @@ get_first_login_time() {
     echo "08:00:00"
 }
 
+# Function to print a decorative border
+print_border() {
+    local char="$1"
+    local length="$2"
+    local color="$3"
+    printf "${color}"
+    for i in $(seq 1 $length); do
+        printf "$char"
+    done
+    printf "${RESET}\n"
+}
+
+# Function to center text
+center_text() {
+    local text="$1"
+    local width="$2"
+    local color="$3"
+    local padding=$(( (width - ${#text}) / 2 ))
+    printf "${color}"
+    for i in $(seq 1 $padding); do printf " "; done
+    printf "$text"
+    for i in $(seq 1 $padding); do printf " "; done
+    if [ $(( ${#text} % 2 )) -ne $(( width % 2 )) ]; then printf " "; fi
+    printf "${RESET}\n"
+}
+
+# Function to format time with icon
+format_time_line() {
+    local icon="$1"
+    local label="$2"
+    local time="$3"
+    local color="$4"
+    printf "  ${CYAN}${icon}${RESET}  ${BOLD}${label}:${RESET} ${color}${time}${RESET}\n"
+}
+
 # Get first timestamp
 first_time=$(get_first_login_time)
 current_time=$(date +"%H:%M:%S")
@@ -143,20 +201,100 @@ current_time_12=$(date +"%I:%M:%S %p")
 leave_sec=$(( first_sec + 9*3600 ))
 leave_time=$(date -d "@$leave_sec" +"%I:%M:%S %p")
 
-# Display output
-echo "=================================================="
-echo "                   DESK TIME                     "
-echo "=================================================="
-echo "First login time: $first_time_12"
-echo "Current time:     $current_time_12"
-echo "Elapsed time:     ${diff_hours} hours ${diff_minutes} minutes"
-echo "Leave office at:  $leave_time (after 9 hours)"
-echo "=================================================="
+# Determine status color based on hours worked
+if [ $diff_hours -lt 8 ]; then
+    status_color="$YELLOW"
+    status_icon="⏳"
+    status_text="WORKING"
+elif [ $diff_hours -lt 9 ]; then
+    status_color="$BLUE"
+    status_icon="⚡"
+    status_text="ALMOST DONE"
+else
+    status_color="$GREEN"
+    status_icon="✅"
+    status_text="CAN LEAVE!"
+fi
+
+# Clear screen for better presentation
+clear
+
+# Display beautiful output
+echo
+print_border "═" 60 "$PURPLE"
+center_text "🕐 DESK TIME TRACKER 🕐" 60 "$BOLD$WHITE$BG_PURPLE"
+print_border "═" 60 "$PURPLE"
+echo
+
+# ASCII Art Clock
+echo -e "${CYAN}        ⏰ Work Hours Dashboard ⏰${RESET}"
+echo -e "${DIM}    ╭─────────────────────────────────╮${RESET}"
+echo -e "${DIM}    │                                 │${RESET}"
+
+format_time_line "🌅" "Started at  " "$first_time_12" "$GREEN"
+format_time_line "🕐" "Current time" "$current_time_12" "$BLUE"
+format_time_line "⏱️ " "Worked for  " "${diff_hours}h ${diff_minutes}m" "$YELLOW"
+format_time_line "🚪" "Can leave at" "$leave_time" "$PURPLE"
+
+echo -e "${DIM}    │                                 │${RESET}"
+echo -e "${DIM}    ╰─────────────────────────────────╯${RESET}"
+echo
+
+# Status indicator
+print_border "─" 60 "$CYAN"
+center_text "${status_icon} STATUS: ${status_text} ${status_icon}" 60 "$BOLD$status_color"
+print_border "─" 60 "$CYAN"
+
+# Progress bar
+echo
+echo -e "  ${BOLD}Progress toward 9 hours:${RESET}"
+progress=$(( (diff_sec * 40) / (9 * 3600) ))
+if [ $progress -gt 40 ]; then progress=40; fi
+
+printf "  ["
+for i in $(seq 1 40); do
+    if [ $i -le $progress ]; then
+        if [ $diff_hours -ge 9 ]; then
+            printf "${GREEN}█${RESET}"
+        else
+            printf "${YELLOW}█${RESET}"
+        fi
+    else
+        printf "${DIM}░${RESET}"
+    fi
+done
+printf "] "
+
+# Percentage
+percentage=$(( (diff_sec * 100) / (9 * 3600) ))
+if [ $percentage -gt 100 ]; then percentage=100; fi
+if [ $percentage -ge 100 ]; then
+    echo -e "${GREEN}${BOLD}${percentage}%${RESET}"
+else
+    echo -e "${YELLOW}${percentage}%${RESET}"
+fi
+
+echo
+print_border "═" 60 "$PURPLE"
+
+# Motivational message
+if [ $diff_hours -lt 4 ]; then
+    echo -e "  ${YELLOW}☕ Good morning! Keep up the great work!${RESET}"
+elif [ $diff_hours -lt 8 ]; then
+    echo -e "  ${BLUE}💪 You're doing great! Keep going!${RESET}"
+elif [ $diff_hours -lt 9 ]; then
+    echo -e "  ${CYAN}🎯 Almost there! Just a bit more!${RESET}"
+else
+    echo -e "  ${GREEN}🎉 Excellent work! You've completed your 9 hours!${RESET}"
+fi
+
+print_border "═" 60 "$PURPLE"
+echo
 
 # Show helpful info if this is a fresh install
 if [ "$1" = "--install" ]; then
-    echo ""
-    echo "Installation complete! You can now run 'desktime' from anywhere."
-    echo "If the command is not found, restart your terminal or run:"
-    echo "  source ~/.bashrc"
+    echo
+    echo -e "${GREEN}✅ Installation complete!${RESET} You can now run ${BOLD}desktime${RESET} from anywhere."
+    echo -e "If the command is not found, restart your terminal or run: ${CYAN}source ~/.bashrc${RESET}"
+    echo
 fi
